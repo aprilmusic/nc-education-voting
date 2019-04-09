@@ -1,0 +1,69 @@
+---
+title: "North Carolina Voting Data District 9"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# Loading in packages 
+library(tidyverse)
+library(dplyr)
+library(knitr)
+library(readxl)
+library(tidyr)
+library(gt)
+
+# Reading in the data with the appropriate column types
+elections <- read_csv("ps_4_elections-poll-nc09-3 copy.csv", col_types = cols(
+  .default = col_character(),
+  turnout_scale = col_double(),
+  turnout_score = col_double(),
+  w_LV = col_double(),
+  w_RV = col_double(),
+  final_weight = col_double(),
+  timestamp = col_datetime(format = "")
+))
+```
+
+People with more education were given the least weight when calculating the total votes.
+```{r echo = FALSE}
+
+elections %>%
+  # Select only those who reported an education level
+  filter(educ %in% c("Graduate or Professional Degree", "Bachelors' degree", "Some college or trade school", "High school", "Grade school")) %>%
+  # Factorize so it stays orderly
+  mutate(educ = factor(educ, levels = c("Grade school", "High school", "Some college or trade school", "Bachelors' degree", "Graduate or Professional Degree"))) %>%
+  # We want the data in groups
+  group_by(educ) %>% 
+  # Start to graph - we want a violin with a jitter over it
+  ggplot(aes(x = educ, y = final_weight)) + geom_violin() +
+  # Add individual points on top of violins
+  geom_jitter(alpha = 0.5, size = 1, width = .25) + 
+  # The way ggplot works, for some reason continuous variables have to be on the y axis
+  coord_flip() +
+  # Titles and captions and axes
+  labs(title = "More Educated Matter Less in North Carolina 9th", subtitle = "Poll gives more weight to people who are less likely to participate in polls", y = "Weight Given to Respondent in Calculating Poll Results", x = element_blank(), caption = "New York Times Upshot/Siena College 2018 live polls")
+
+```
+
+
+
+Older people tended to respond more. Notably, people age 18-34 of all parties had very low turnout numbers.
+```{r echo = FALSE}
+elections %>% 
+  # Get only responses to Dem, Rep, Und, and people for which we have age data
+  filter(response %in% c("Dem", "Rep", "Und"), ager != "[DO NOT READ] Refused") %>% 
+  select(response, ager) %>% 
+  # Group by them
+  group_by(ager, response) %>% 
+  # Count the number of people who responded each way
+  count(response) %>%
+  rename("Ages" = "ager") %>%
+  # Plotting responses with color depending on age 
+  ggplot(aes(x = response, y = n, fill = Ages)) + 
+  # Separates out columns
+  geom_col(position = "dodge2") +
+  # Titles and axes
+  labs(title = "Response by Age Range", caption = "Source: Siena College 2018 live polls", 
+       x = "Political Party", y = "Number of Responses") 
+```
